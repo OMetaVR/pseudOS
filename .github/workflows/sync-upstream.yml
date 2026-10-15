@@ -1,0 +1,32 @@
+# Fork-only workflow (see FORK.md). Merges upstream LiveContainer into main,
+# but only after the merged result builds.
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: "23 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository != 'LiveContainer/LiveContainer'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Merge, build and promote
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .fork/sync.sh
