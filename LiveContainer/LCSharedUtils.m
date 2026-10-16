@@ -61,6 +61,9 @@ NSString* FBSOpenApplicationOptionKeyPayloadURL = @"__PayloadURL";
             [@"group.com.SideStore.SideStore." stringByAppendingString:[self teamIdentifier]],
             [@"group.com.rileytestut.AltStore." stringByAppendingString:[self teamIdentifier]]
         ];
+        // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
+        // A build with its own identity must never borrow the store's group (that's LiveContainer's data).
+        if (![([NSUserDefaults.lcMainBundle objectForInfoDictionaryKey:@"PseudoIdentityBase"] ?: @"com.kdt.livecontainer") isEqualToString:@"com.kdt.livecontainer"]) possibleAppGroups = @[];
         
         // we prefer app groups with "Apps" in it, which indicate this app group is actually used by the store.
         for (NSString *group in possibleAppGroups) {
@@ -399,6 +402,9 @@ NSString* FBSOpenApplicationOptionKeyPayloadURL = @"__PayloadURL";
 }
 
 + (NSArray<NSString*>*)lcUnorderedUrlSchemes {
+    // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
+    NSString *primaryScheme = ([NSUserDefaults.lcMainBundle objectForInfoDictionaryKey:@"PseudoURLScheme"] ?: @"livecontainer");
+    if (![primaryScheme isEqualToString:@"livecontainer"]) return @[primaryScheme];
     NSArray<NSString *> *defaultSchemes = @[@"livecontainer", @"livecontainer2", @"livecontainer3"];
     return defaultSchemes;
 }

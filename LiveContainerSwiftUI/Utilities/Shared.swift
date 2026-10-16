@@ -26,7 +26,8 @@ struct LCPath {
         // it seems that Apple don't want to create one for us, so we just borrow our Store's
         if let appGroupPathUrl = LCSharedUtils.appGroupPath() {
             return appGroupPathUrl.appendingPathComponent("LiveContainer")
-        } else if let appGroupPathUrl =
+        } else if ((UserDefaults.lcMainBundle().object(forInfoDictionaryKey: "PseudoIdentityBase") as? String) ?? "com.kdt.livecontainer") == "com.kdt.livecontainer", // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
+                  let appGroupPathUrl =
                     FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.com.SideStore.SideStore") {
             return appGroupPathUrl.appendingPathComponent("LiveContainer")
         } else {
@@ -94,7 +95,8 @@ class SharedModel: ObservableObject {
     public static let keychainAccessGroupCount = 128
     
     func updateMultiLCStatus() {
-        if LCUtils.appUrlScheme()?.lowercased() != "livecontainer" {
+        // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
+        if LCUtils.appUrlScheme()?.lowercased() != ((UserDefaults.lcMainBundle().object(forInfoDictionaryKey: "PseudoURLScheme") as? String) ?? "livecontainer") {
             multiLCStatus = 2
         } else {
             multiLCStatus = 0

@@ -47,7 +47,8 @@
     }
     
     // in LC2, attempt to guess LC1's LiveProcess extension
-    NSString *bundleID = [NSString stringWithFormat:@"com.kdt.livecontainer.%@.LiveProcess", LCSharedUtils.teamIdentifier];
+    // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
+    NSString *bundleID = [NSString stringWithFormat:@"%@.%@.LiveProcess", ([NSUserDefaults.lcMainBundle objectForInfoDictionaryKey:@"PseudoIdentityBase"] ?: @"com.kdt.livecontainer"), LCSharedUtils.teamIdentifier];
     if([NSExtension extensionWithIdentifier:bundleID error:nil]) {
         return bundleID;
     }

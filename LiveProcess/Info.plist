@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md) -->
+	<key>PseudoIdentityBase</key>
+	<string>$(PSEUDOS_IDENTITY_BASE)</string>
+	<key>PseudoURLScheme</key>
+	<string>$(PSEUDOS_URL_SCHEME)</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleURLTypes</key>

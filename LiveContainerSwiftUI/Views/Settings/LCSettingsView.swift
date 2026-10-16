@@ -590,7 +590,7 @@ struct LCSettingsView: View {
                     kSecAttrAccount as String: "signingCertificate",
                     kSecReturnData as String: true,
                     kSecMatchLimit as String: kSecMatchLimitOne,
-                    kSecAttrService as String: "com.kdt.livecontainer",
+                    kSecAttrService as String: ((UserDefaults.lcMainBundle().object(forInfoDictionaryKey: "PseudoIdentityBase") as? String) ?? "com.kdt.livecontainer"), // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
                     kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
                 ]
                 
@@ -619,7 +619,7 @@ struct LCSettingsView: View {
                     kSecAttrAccount as String: "signingCertificatePassword",
                     kSecReturnData as String: true,
                     kSecMatchLimit as String: kSecMatchLimitOne,
-                    kSecAttrService as String: "com.kdt.livecontainer",
+                    kSecAttrService as String: ((UserDefaults.lcMainBundle().object(forInfoDictionaryKey: "PseudoIdentityBase") as? String) ?? "com.kdt.livecontainer"), // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
                     kSecAttrSynchronizable as String: kSecAttrSynchronizableAny
                 ]
                 

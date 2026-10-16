@@ -100,7 +100,7 @@ struct SettingsApp: View {
                 prefs.classicUI = true
             }
         } message: {
-            Text("Running apps will close. To come back, open livecontainer://pseudos-shell or turn pseudOS on in Settings.")
+            Text("Running apps will close. To come back, open \(LCUtils.appUrlScheme() ?? "livecontainer")://pseudos-shell in Safari.")
         }
         .onAppear(perform: followRoute)
         .onChange(of: model.settingsRoute) { _ in followRoute() }

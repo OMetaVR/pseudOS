@@ -66,12 +66,13 @@ static id SSSceneObserver;
 
 @implementation NSBundle(SideStoreHooks)
 
+// FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
 + (NSString*)hook_appbundleIdentifier {
-    return @"com.kdt.livecontainer";
+    return ([NSUserDefaults.lcMainBundle objectForInfoDictionaryKey:@"PseudoIdentityBase"] ?: @"com.kdt.livecontainer");
 }
 
 + (NSString*)hook_storeAppBundleIdentifier {
-    return @"com.kdt.livecontainer";
+    return ([NSUserDefaults.lcMainBundle objectForInfoDictionaryKey:@"PseudoIdentityBase"] ?: @"com.kdt.livecontainer");
 }
 
 - (NSString*)hook_altstoreAppGroup {

@@ -121,10 +121,12 @@ void SecItemGuestHooksInit(void)  {
     NSDictionary* infoDict = [NSUserDefaults guestContainerInfo];
     int keychainGroupId = [infoDict[@"keychainGroupId"] intValue];
     NSString* groupId = [LCSharedUtils teamIdentifier];
+    // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
+    NSString* identityBase = ([NSUserDefaults.lcMainBundle objectForInfoDictionaryKey:@"PseudoIdentityBase"] ?: @"com.kdt.livecontainer");
     if(keychainGroupId == 0) {
-        accessGroup = [NSString stringWithFormat:@"%@.com.kdt.livecontainer.shared", groupId];
+        accessGroup = [NSString stringWithFormat:@"%@.%@.shared", groupId, identityBase];
     } else {
-        accessGroup = [NSString stringWithFormat:@"%@.com.kdt.livecontainer.shared.%d", groupId, keychainGroupId];
+        accessGroup = [NSString stringWithFormat:@"%@.%@.shared.%d", groupId, identityBase, keychainGroupId];
     }
     
     // check if the keychain access group is available

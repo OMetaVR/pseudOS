@@ -1,0 +1,97 @@
+# Fork-only workflow (see FORK.md). Builds pseudOS with its own identity so it installs beside
+# LiveContainer without sharing anything with it: bundle ID, app group, keychain groups and URL scheme
+# all differ. Runs on every push to a pseudos/* branch and publishes the "pseudos-dev" prerelease.
+# Mirrors the build steps of upstream's build.yml; the identity comes from the PSEUDOS_* build settings.
+name: pseudOS dev build (side by side)
+
+on:
+  push:
+    branches: ["pseudos/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pseudos-dev
+  cancel-in-progress: true
+
+env:
+  DEV_ID: com.ometavr.pseudos
+  DEV_GROUP: group.com.ometavr.pseudos
+  DEV_SCHEME: pseudos
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      archive_path: archive
+      scheme: LiveContainer
+    steps:
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.2'
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: Archive with the dev identity
+        run: |
+          xcodebuild archive -archivePath "$archive_path" -scheme "$scheme" -project LiveContainer.xcodeproj \
+            -sdk iphoneos -arch arm64 -configuration Release \
+            LIVECONTAINER_BUNDLE_IDENTIFIER="$DEV_ID" PSEUDOS_IDENTITY_BASE="$DEV_ID" PSEUDOS_URL_SCHEME="$DEV_SCHEME" \
+            APP_GROUP_SIDESTORE="$DEV_GROUP" APP_GROUP_ALTSTORE="$DEV_GROUP.altstore" \
+            | xcpretty && exit ${PIPESTATUS[0]}
+      - name: Package (upstream's script, retargeted)
+        run: |
+          set -euo pipefail
+          # Same packaging as build.yml, with LiveContainer's identity swapped for the dev one.
+          # SideStore's plain "sidestore" scheme is renamed so links meant for the real SideStore never land here.
+          sed -e "s/group\.com\.SideStore\.SideStore/$DEV_GROUP/g" \
+              -e "s/com\.kdt\.livecontainer/$DEV_ID/g" \
+              -e "s/CFBundleURLSchemes:0 string sidestore\"/CFBundleURLSchemes:0 string $DEV_SCHEME-sidestore\"/" \
+              .github/build_github.sh > "$RUNNER_TEMP/build_dev.sh"
+          sh "$RUNNER_TEMP/build_dev.sh"
+          # Only LiveProcess is needed (it runs the apps). Dropping the share, launch and widget extensions
+          # avoids duplicate share-sheet entries and saves App IDs on free accounts.
+          mkdir -p out
+          for ipa in "$scheme.ipa" "$scheme+SideStore.ipa"; do
+            zip -q -d "$ipa" "Payload/LiveContainer.app/PlugIns/ShareExtension.appex/*" \
+                            "Payload/LiveContainer.app/PlugIns/LaunchAppExtension.appex/*" \
+                            "Payload/LiveContainer.app/PlugIns/LiveWidgetExtension.appex/*" || true
+          done
+          cp "$scheme.ipa" out/pseudOS-Dev.ipa
+          cp "$scheme+SideStore.ipa" out/pseudOS-Dev+SideStore.ipa
+          ls -l out
+      - name: Check identity
+        run: |
+          set -euo pipefail
+          rm -rf check && mkdir check && cd check && unzip -q ../out/pseudOS-Dev+SideStore.ipa
+          A=Payload/LiveContainer.app
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" $A/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes" $A/Info.plist
+          /usr/libexec/PlistBuddy -c "Print :PseudoIdentityBase" $A/Info.plist
+          ls $A/PlugIns
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" $A/PlugIns/LiveProcess.appex/Info.plist
+          codesign -d --entitlements :- $A 2>/dev/null | grep -E -m3 "pseudos|SideStore|kdt" || true
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' $A/Info.plist)" = "$DEV_ID"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SHORT=${GITHUB_SHA::7}
+          cat > notes.md <<NOTES
+          Side-by-side test build of pseudOS from \`${GITHUB_REF_NAME}\` at [\`$SHORT\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}).
+
+          Installs **next to** LiveContainer: bundle ID \`$DEV_ID\`, its own app group, keychain groups and \`$DEV_SCHEME://\` links, so it shares nothing with your LiveContainer install. Its apps are installed separately.
+
+          | File | For |
+          | --- | --- |
+          | \`pseudOS-Dev+SideStore.ipa\` | iLoader → Import IPA. Includes SideStore for Settings › Signing (set it up once from there). |
+          | \`pseudOS-Dev.ipa\` | Without SideStore. |
+
+          Classic UI: \`$DEV_SCHEME://pseudos-classic\`. Back to the shell: \`$DEV_SCHEME://pseudos-shell\`.
+          NOTES
+          gh release delete pseudos-dev -R "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
+          gh release create pseudos-dev out/pseudOS-Dev.ipa out/pseudOS-Dev+SideStore.ipa -R "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --prerelease --title "pseudOS dev, side by side ($SHORT)" --notes-file notes.md

@@ -299,9 +299,9 @@ final class LCAppBannerViewController: UIViewController, UIContextMenuInteractio
         }
 
         if let folderName = configuration.model.uiSelectedContainer?.folderName {
-            UIPasteboard.general.string = "livecontainer://livecontainer-launch?bundle-name=\(relativeBundlePath)&container-folder-name=\(folderName)"
+            UIPasteboard.general.string = "\(((UserDefaults.lcMainBundle().object(forInfoDictionaryKey: "PseudoURLScheme") as? String) ?? "livecontainer"))://livecontainer-launch?bundle-name=\(relativeBundlePath)&container-folder-name=\(folderName)" // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
         } else {
-            UIPasteboard.general.string = "livecontainer://livecontainer-launch?bundle-name=\(relativeBundlePath)"
+            UIPasteboard.general.string = "\(((UserDefaults.lcMainBundle().object(forInfoDictionaryKey: "PseudoURLScheme") as? String) ?? "livecontainer"))://livecontainer-launch?bundle-name=\(relativeBundlePath)"
         }
     }
 

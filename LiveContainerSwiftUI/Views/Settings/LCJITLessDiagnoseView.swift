@@ -133,10 +133,12 @@ struct LCEntitlementView : View {
             }
             if let keyChainAccessGroups = entitlementDict["keychain-access-groups"] as? Array<String> {
                 var notFound = true
-                if keyChainAccessGroups.contains("\(entitlementTeamId).com.kdt.livecontainer.shared") {
+                // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
+                let identityBase = ((UserDefaults.lcMainBundle().object(forInfoDictionaryKey: "PseudoIdentityBase") as? String) ?? "com.kdt.livecontainer")
+                if keyChainAccessGroups.contains("\(entitlementTeamId).\(identityBase).shared") {
                     notFound = false
                     for i in 1..<SharedModel.keychainAccessGroupCount {
-                        if !keyChainAccessGroups.contains("\(entitlementTeamId).com.kdt.livecontainer.shared.\(i)") {
+                        if !keyChainAccessGroups.contains("\(entitlementTeamId).\(identityBase).shared.\(i)") {
                             notFound = true
                             continue
                         }

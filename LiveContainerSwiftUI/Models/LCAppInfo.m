@@ -247,9 +247,10 @@
 - (NSDictionary *)generateWebClipConfigWithContainerId:(NSString*)containerId iconStyle:(GeneratedIconStyle)style{
     NSString* appClipUrl;
     if(containerId) {
-        appClipUrl = [NSString stringWithFormat:@"livecontainer://livecontainer-launch?bundle-name=%@&container-folder-name=%@", self.bundlePath.lastPathComponent, containerId];
+        // FORK: identity is a build setting so pseudOS can also build as a side-by-side dev app (see FORK.md)
+        appClipUrl = [NSString stringWithFormat:@"%@://livecontainer-launch?bundle-name=%@&container-folder-name=%@", ([NSUserDefaults.lcMainBundle objectForInfoDictionaryKey:@"PseudoURLScheme"] ?: @"livecontainer"), self.bundlePath.lastPathComponent, containerId];
     } else {
-        appClipUrl = [NSString stringWithFormat:@"livecontainer://livecontainer-launch?bundle-name=%@", self.bundlePath.lastPathComponent];
+        appClipUrl = [NSString stringWithFormat:@"%@://livecontainer-launch?bundle-name=%@", ([NSUserDefaults.lcMainBundle objectForInfoDictionaryKey:@"PseudoURLScheme"] ?: @"livecontainer"), self.bundlePath.lastPathComponent];
     }
     
     UIImage* icon = [self generateLiveContainerWrappedIconWithStyle:style];
