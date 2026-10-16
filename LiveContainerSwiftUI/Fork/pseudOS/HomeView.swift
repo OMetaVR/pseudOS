@@ -256,7 +256,6 @@ private struct IconPage: View {
             }
     }
 }
-}
 
 @available(iOS 16.0, *)
 struct HomeIcon: View {
