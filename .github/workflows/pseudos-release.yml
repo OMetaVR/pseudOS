@@ -1,0 +1,60 @@
+# Fork-only workflow (see FORK.md). Builds with upstream's build.yml and publishes the pseudOS IPAs.
+name: pseudOS release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to create or replace
+        default: pseudos-beta
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pseudos-release
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: write
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Rename to pseudOS
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          find artifacts -name 'LiveContainer.ipa' -type f -exec cp {} out/pseudOS.ipa \;
+          find artifacts -name 'LiveContainer+SideStore.ipa' -type f -exec cp {} out/pseudOS+SideStore.ipa \;
+          ls -l out
+          test -f out/pseudOS+SideStore.ipa
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || 'pseudos-beta' }}
+        run: |
+          set -euo pipefail
+          SHORT=${GITHUB_SHA::7}
+          cat > notes.md <<NOTES
+          pseudOS build from \`${GITHUB_REF_NAME}\` at [\`$SHORT\`](https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}).
+
+          | File | For |
+          | --- | --- |
+          | \`pseudOS+SideStore.ipa\` | Install with iLoader (Import IPA). Includes built-in SideStore, which Settings › Signing uses to refresh. |
+          | \`pseudOS.ipa\` | Without SideStore, for other sideloaders. |
+
+          Same bundle ID as LiveContainer (\`com.kdt.livecontainer\`): installing replaces LiveContainer and keeps your apps and data.
+          NOTES
+          sed -i 's/^          //' notes.md
+          gh release delete "$TAG" -R "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" out/pseudOS.ipa out/pseudOS+SideStore.ipa -R "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --prerelease --title "pseudOS Beta 1 ($SHORT)" --notes-file notes.md
