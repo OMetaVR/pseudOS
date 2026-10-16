@@ -21,7 +21,7 @@ import sys
 import time
 from pathlib import Path
 
-REPO = os.environ.get("LC_FORK_REPO", "OMetaVR/LiveContainer")
+REPO = os.environ.get("LC_FORK_REPO", "OMetaVR/pseudOS")
 UPSTREAM_URL = "https://github.com/LiveContainer/LiveContainer.git"
 MODEL = os.environ.get("LC_FORK_MODEL", "claude-opus-5-5")
 EFFORT = os.environ.get("LC_FORK_EFFORT", "medium")
