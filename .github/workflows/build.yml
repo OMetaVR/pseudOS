@@ -3,6 +3,8 @@ name: Xcode - Build
 on: 
   push:
   pull_request:
+  # FORK: lets pseudos-release.yml reuse this build (see FORK.md)
+  workflow_call:
   workflow_dispatch:
     inputs: 
       release__nightly:

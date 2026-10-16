@@ -28,8 +28,8 @@ public final class PseudoRefreshBridge: NSObject {
                 try await performIntentRefresh(identifier: "RefreshAllIntent", mangledTypeName: "9SideStore20RefreshAllAppsIntentV", intentProgress: p)
                 DispatchQueue.main.async { observation = nil; completion(nil) }
             } catch {
-                let message = error.localizedDescription as NSString
-                DispatchQueue.main.async { observation = nil; completion(message) }
+                let message = error.localizedDescription
+                DispatchQueue.main.async { observation = nil; completion(message as NSString) }
             }
         }
     }

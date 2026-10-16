@@ -20,6 +20,8 @@ Every change this fork makes to upstream behavior is listed here. **The upstream
 | Display name "pseudOS" | `LiveContainer/Info.plist` `CFBundleDisplayName` (`<!-- FORK: -->`) | Bundle ID stays `com.kdt.livecontainer` on purpose: SideStore hooks, certificate import and URL schemes depend on it. |
 | Geist font | `LiveContainerSwiftUI/Fork/pseudOS/Fonts/` | SIL OFL (licence alongside); registered at runtime, so no `UIAppFonts` edit. |
 | Design mockup | `design/pseudos-beta1-mockup.html` | Reference only, not in the app. |
+| App icon | `Resources/Assets.xcassets/AppIcon.appiconset/*.png` | Same file names as upstream (default, dark, tinted); regenerate rather than merge if upstream changes them. |
+| pseudOS release | `.github/workflows/pseudos-release.yml`; `.github/workflows/build.yml` gains `workflow_call:` (`# FORK:`) | Reuses upstream's build, renames the IPAs to `pseudOS.ipa` / `pseudOS+SideStore.ipa`, publishes a prerelease. |
 
 ## Where fork code goes
 
