@@ -163,6 +163,7 @@ final class PseudoShellBridge: NSObject {
 
     /// Called from LCUtils.launchMultitaskGuestApp instead of creating a DecoratedAppSceneViewController.
     @objc(launchGuestWithDisplayName:bundleId:dataUUID:completion:)
+    @MainActor
     static func launchGuest(displayName: String, bundleId: String, dataUUID: String, completion: ((NSNumber?, Error?) -> Void)?) {
         guard #available(iOS 16.0, *) else { completion?(nil, NSError(domain: "pseudOS", code: 1)); return }
         if let compositor = ShellModel.shared.compositor {
@@ -174,6 +175,7 @@ final class PseudoShellBridge: NSObject {
 
     /// Called from LCAppModel and the Library's Run button when an app may already be running.
     @objc(bringToFrontWithDataUUID:urlScheme:)
+    @MainActor
     static func bringToFront(dataUUID: String, urlScheme: String?) -> Bool {
         guard #available(iOS 16.0, *) else { return false }
         let found = ShellModel.shared.compositor?.bringGuestToFront(dataUUID: dataUUID, urlScheme: urlScheme) ?? false

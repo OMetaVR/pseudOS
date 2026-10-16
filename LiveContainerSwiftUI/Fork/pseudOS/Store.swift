@@ -8,7 +8,9 @@
 
 import SwiftUI
 import Combine
+import CryptoKit
 
+@MainActor
 final class UpdateTracker: ObservableObject {
     static let shared = UpdateTracker()
 
@@ -59,7 +61,7 @@ final class UpdateTracker: ObservableObject {
         sources.$sources
             .combineLatest(DataManager.shared.model.$apps)
             .debounce(for: .milliseconds(250), scheduler: DispatchQueue.main)
-            .sink { [weak self] _, _ in self?.recompute() }
+            .sink { [weak self] _, _ in Task { @MainActor in self?.recompute() } }
             .store(in: &bag)
     }
 
@@ -81,9 +83,16 @@ final class UpdateTracker: ObservableObject {
         return Bundle(path: path)?.infoDictionary?["CFBundleVersion"] as? String
     }
 
+    /// The raw JSON upstream's sources model cached for a source (same path it writes to).
+    nonisolated static func cachedSourceData(for url: URL) -> Data? {
+        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return nil }
+        let digest = SHA256.hash(data: Data(url.absoluteString.utf8)).map { String(format: "%02x", $0) }.joined()
+        return try? Data(contentsOf: caches.appendingPathComponent("AltStoreSourceCache/\(digest).json"))
+    }
+
     /// The sha256 published for the newest version of an app, read from the source's cached JSON.
     private func publishedSHA(bundleId: String, in url: URL) -> String? {
-        guard let data = sources.cachedData(for: url),
+        guard let data = Self.cachedSourceData(for: url),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let apps = json["apps"] as? [[String: Any]],
               let app = apps.first(where: { ($0["bundleIdentifier"] as? String) == bundleId }) else { return nil }
@@ -257,7 +266,7 @@ struct StoreApp: View {
     }
 
     private func publishedSHA(_ bundleId: String, _ url: URL) -> String? {
-        guard let data = tracker.sources.cachedData(for: url),
+        guard let data = UpdateTracker.cachedSourceData(for: url),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let apps = json["apps"] as? [[String: Any]],
               let app = apps.first(where: { ($0["bundleIdentifier"] as? String) == bundleId }) else { return nil }

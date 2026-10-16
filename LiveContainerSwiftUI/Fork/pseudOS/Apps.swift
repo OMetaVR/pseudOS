@@ -394,7 +394,7 @@ private struct PhotoViewer: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Color.black.opacity(1 - min(0.6, abs(drag.height) / 400)).ignoresSafeArea()
+            Color.black.opacity(1 - min(0.6, Double(abs(drag.height)) / 400)).ignoresSafeArea()
             if let image {
                 Image(uiImage: image).resizable().scaledToFit()
                     .scaleEffect(scale)
