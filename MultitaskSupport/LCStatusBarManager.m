@@ -14,6 +14,8 @@
         [self.nativeWindowViewController handleStatusBarTapAction:action];
         return;
     }
+    // FORK: pseudOS has no virtual windows; don't create upstream's dock (see FORK.md)
+    if (PseudoShellBridge.isActive) { [super handleTapAction:action]; return; }
     BOOL handledByVirtualWindow = [MultitaskDockManager.shared.windowHostingView handleStatusBarTapAction:action];
     if(!handledByVirtualWindow) {
         [super handleTapAction:action];

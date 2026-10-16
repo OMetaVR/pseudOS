@@ -11,6 +11,15 @@ Every change this fork makes to upstream behavior is listed here. **The upstream
 | Customization | Where | Notes |
 | --- | --- | --- |
 | Upstream sync + local fixer | `.fork/`, `.github/workflows/sync-upstream.yml`, `FORK.md` | Fork-only files; upstream never touches them. |
+| pseudOS shell (home screen, app switcher, stock apps) | `LiveContainerSwiftUI/Fork/pseudOS/` | All shell code. Guests are hosted with `AppSceneViewController` the same way upstream's native-window mode does (`MultitaskSupport/MultitaskAppWindow.swift`); keep `GuestHost.swift` in step with it. |
+| Shell as the root view | `LiveContainerSwiftUI/App/LiveContainerSwiftUIApp.swift` (`// FORK:`) | `WindowGroup("Main")` shows `PseudoOSRoot()`, which shows upstream's `LCTabView()` when classic UI is on. |
+| Multitask launches go to the shell | `LiveContainerSwiftUI/Utilities/LCUtils.m` `+launchMultitaskGuestApp:` (`// FORK:`) | When `PseudoShellBridge.isActive`, hand bundleId/dataUUID/completion to the shell instead of creating `DecoratedAppSceneViewController`. |
+| Bring running apps to front via the shell | `LiveContainerSwiftUI/Models/LCAppModel.swift` `bringExistingMultitaskWindowIfNeeded`, `LiveContainerSwiftUI/Views/AppList/LCAppBanner/LCAppBannerViewController.swift` `runButtonTapped` (`// FORK:`) | Upstream's fallback creates `MultitaskDockManager.shared`, which builds the floating dock; the shell must answer first. |
+| Status-bar taps without the dock | `MultitaskSupport/LCStatusBarManager.m` `handleTapAction:` (`// FORK:`) | Same reason: never touch `MultitaskDockManager.shared` while the shell is active. |
+| Built-in SideStore refresh from Settings | `SideStoreSupport/Fork/PseudoRefreshBridge.swift` | `@objc(PseudoRefreshBridge)` wrapper around `performIntentRefresh` (`SideStoreSupport/SideStore.swift`), looked up with `NSClassFromString`. |
+| Display name "pseudOS" | `LiveContainer/Info.plist` `CFBundleDisplayName` (`<!-- FORK: -->`) | Bundle ID stays `com.kdt.livecontainer` on purpose: SideStore hooks, certificate import and URL schemes depend on it. |
+| Geist font | `LiveContainerSwiftUI/Fork/pseudOS/Fonts/` | SIL OFL (licence alongside); registered at runtime, so no `UIAppFonts` edit. |
+| Design mockup | `design/pseudos-beta1-mockup.html` | Reference only, not in the app. |
 
 ## Where fork code goes
 

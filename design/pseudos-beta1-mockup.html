@@ -1,0 +1,776 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pseudOS Beta 1 mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --phone-w: 375px; --phone-h: 812px; }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .stage { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; padding: 8px 0 16px; }
+  .phone-wrap { flex: 0 0 auto; }
+
+  /* ---------- the phone (its own surface, so it carries its own colors) ---------- */
+  .phone {
+    --slate:#1E2329; --graphite:#2E353D; --paper:#F3F5F7; --fog:#9AA5B1; --signal:#FFB000; --alert:#FF5A4F;
+    --surface: rgba(46,53,61,.72); --surface-solid:#262C33; --line: rgba(243,245,247,.08);
+    --label:#F3F5F7; --app-bg:#1A1E23; --row:#232930;
+    position: relative; width: var(--phone-w); height: var(--phone-h); border-radius: 52px; overflow: hidden;
+    background: var(--slate); color: var(--paper);
+    font-family: "Geist", -apple-system, system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+    box-shadow: 0 0 0 10px #0d0f12, 0 0 0 11px #3a4048, 0 30px 60px -20px rgba(0,0,0,.55);
+    user-select: none; -webkit-user-select: none; touch-action: none; margin: 11px;
+  }
+  .phone[data-theme="light"] {
+    --slate:#E9EDF1; --paper:#1E2329; --fog:#5B6673; --signal:#B87400; --alert:#D93A30;
+    --surface: rgba(255,255,255,.70); --surface-solid:#F7F9FB; --line: rgba(30,35,41,.08);
+    --label:#1E2329; --app-bg:#F2F4F7; --row:#FFFFFF;
+  }
+  canvas#wall { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+  /* iOS status bar (iOS owns this; pseudOS keeps it visible) */
+  .iosbar { position: absolute; top: 0; left: 0; right: 0; height: 54px; z-index: 60; display: flex; align-items: center;
+    justify-content: space-between; padding: 6px 30px 0 44px; font: 600 16px/1 -apple-system, system-ui, sans-serif; pointer-events: none; color: var(--bar-ink, var(--paper)); }
+  .island { position: absolute; left: 50%; top: 11px; width: 122px; height: 35px; margin-left: -61px; background: #000; border-radius: 20px; }
+  .iosbar .right { display: flex; gap: 6px; align-items: center; }
+  .iosbar svg { fill: currentColor; }
+
+  /* ---------- home ---------- */
+  #home { position: absolute; inset: 0; z-index: 10; transition: transform .35s cubic-bezier(.2,.8,.2,1), opacity .35s, filter .35s; }
+  #home.away { transform: scale(.94); opacity: .0; filter: blur(6px); pointer-events: none; }
+  .clock { position: absolute; left: 26px; top: 72px; }
+  .clock .t { font-weight: 300; font-size: 76px; letter-spacing: -3px; line-height: .9; font-variant-numeric: tabular-nums; color: var(--label); }
+  .clock .d { margin-top: 10px; font-size: 15px; font-weight: 500; color: var(--fog); }
+  .strip { position: absolute; left: 0; right: 0; top: 196px; display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; padding: 0 22px; scrollbar-width: none; }
+  .strip::-webkit-scrollbar { display: none; }
+  .strip .chip { flex: 0 0 auto; }
+  .chip { border: 0; font: 500 12.5px "Geist", system-ui; color: var(--label); background: var(--surface); backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2); border-radius: 10px; padding: 7px 10px; display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+  .chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--signal); }
+  .chip.warn .dot { background: var(--alert); }
+  .chip .eq { display: inline-flex; gap: 2px; align-items: flex-end; height: 10px; }
+  .chip .eq i { width: 2px; background: #1DB954; border-radius: 1px; animation: eq 1s infinite ease-in-out; }
+  .chip .eq i:nth-child(2) { animation-delay: -.3s } .chip .eq i:nth-child(3) { animation-delay: -.6s }
+  @keyframes eq { 0%,100% { height: 3px } 50% { height: 10px } }
+
+  .pages { position: absolute; top: 246px; left: 0; right: 0; height: 368px; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .pages::-webkit-scrollbar { display: none; }
+  .page { flex: 0 0 100%; scroll-snap-align: start; padding: 0 18px; display: grid; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 92px; align-content: start; }
+  .dots { position: absolute; top: 620px; left: 0; right: 0; display: flex; justify-content: center; gap: 7px; }
+  .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--fog); opacity: .45; transition: opacity .2s, width .2s; }
+  .dots i.on { opacity: 1; width: 16px; border-radius: 3px; background: var(--label); }
+
+  .icon { display: flex; flex-direction: column; align-items: center; gap: 7px; border: 0; background: none; padding: 0; color: var(--label); cursor: pointer; position: relative; font-family: inherit; }
+  .icon .lbl { font-size: 11.5px; font-weight: 500; letter-spacing: -.1px; max-width: 76px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .phone[data-theme="dark"] .icon .lbl { text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+  .tile { width: 60px; height: 60px; border-radius: 15px; position: relative; overflow: hidden;
+    background: linear-gradient(180deg, #39414A, #2A3037); box-shadow: 0 8px 16px -6px rgba(0,0,0,.45); }
+  .tile::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.35), inset 0 0 0 .5px rgba(255,255,255,.06); }
+  .tile img { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .tile svg { position: absolute; inset: 15px; width: 30px; height: 30px; fill: none; stroke: #F3F5F7; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .tile svg .a { stroke: var(--signal-fixed, #FFB000); }
+  .tile svg .af { fill: var(--signal-fixed, #FFB000); stroke: none; }
+  .badge { position: absolute; top: -5px; right: 6px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--signal-fixed, #FFB000);
+    color: #1E2329; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; z-index: 2; box-shadow: 0 0 0 2px rgba(0,0,0,.15); }
+  .running-dot { position: absolute; bottom: 17px; width: 4px; height: 4px; border-radius: 2px; background: var(--signal-fixed, #FFB000); opacity: 0; transition: opacity .2s; }
+  .icon.running .running-dot { opacity: 1; }
+  .icon .rm { position: absolute; top: -6px; left: 2px; width: 22px; height: 22px; border-radius: 11px; background: var(--fog); color: #1E2329; font-weight: 700;
+    display: none; align-items: center; justify-content: center; z-index: 3; font-size: 16px; line-height: 1; }
+  .editing .icon .rm { display: flex; }
+  .editing .icon .tile { outline: 1.5px dashed var(--signal-fixed,#FFB000); outline-offset: 3px; }
+  .done-pill { position: absolute; top: 58px; right: 18px; z-index: 30; display: none; }
+  .editing .done-pill { display: block; }
+
+  .dock { position: absolute; left: 12px; right: 12px; bottom: 44px; height: 90px; border-radius: 28px; background: var(--surface);
+    backdrop-filter: blur(22px) saturate(1.25); -webkit-backdrop-filter: blur(22px) saturate(1.25);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 10px 30px -12px rgba(0,0,0,.5); display: grid; grid-template-columns: repeat(4,1fr); align-items: center; padding: 0 6px; }
+  .dock .icon .lbl { display: none; }
+  .dock .icon .running-dot { bottom: -9px; }
+
+  /* ---------- apps ---------- */
+  #apps { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
+  .app { position: absolute; left: 0; top: 0; width: var(--phone-w); height: var(--phone-h); overflow: hidden; background: var(--app-bg); color: var(--label);
+    visibility: hidden; pointer-events: none; transform-origin: 0 0; border-radius: 0; }
+  .app.fg { visibility: visible; pointer-events: auto; }
+  .app .scroll { position: absolute; inset: 0; overflow-y: auto; padding: 54px 0 70px; scrollbar-width: none; }
+  .app .scroll::-webkit-scrollbar { display: none; }
+
+  /* system app chrome */
+  .sys h1 { font-size: 32px; font-weight: 600; letter-spacing: -.8px; margin: 14px 20px 14px; }
+  .sys h2 { font-size: 13px; font-weight: 500; color: var(--fog); margin: 22px 32px 7px; }
+  .group { margin: 0 16px; background: var(--row); border-radius: 16px; overflow: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+  .row { display: flex; align-items: center; gap: 12px; padding: 13px 16px; min-height: 52px; border: 0; background: none; width: 100%; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .row + .row { box-shadow: inset 0 1px 0 var(--line); }
+  .row .gl { width: 30px; height: 30px; border-radius: 8px; background: #39414A; display: flex; align-items: center; justify-content: center; flex: 0 0 30px; }
+  .row .gl svg { width: 18px; height: 18px; fill: none; stroke: #F3F5F7; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .row .gl svg .a { stroke: #FFB000; } .row .gl svg .af { fill: #FFB000; stroke: none; }
+  .row .gl img { width: 30px; height: 30px; border-radius: 8px; }
+  .row .tx { flex: 1; min-width: 0; }
+  .row .tx b { display: block; font-weight: 500; font-size: 15.5px; }
+  .row .tx small { display: block; color: var(--fog); font-size: 13px; margin-top: 2px; }
+  .row .val { color: var(--fog); font-size: 15px; }
+  .row .chev { color: var(--fog); font-size: 18px; margin-left: 2px; }
+  .back { border: 0; background: none; color: var(--signal); font: 500 16px "Geist", system-ui; padding: 8px 16px; cursor: pointer; display: flex; gap: 4px; align-items: center; }
+  .btn { border: 0; border-radius: 12px; font: 600 15px "Geist", system-ui; padding: 12px 16px; cursor: pointer; }
+  .btn.primary { background: var(--signal); color: #1E2329; }
+  .btn.quiet { background: var(--row); color: var(--label); }
+  .row .btn.quiet { background: var(--line); }
+  .btn.tint { background: color-mix(in srgb, var(--signal) 18%, transparent); color: var(--signal); }
+  .btn.small { padding: 7px 14px; border-radius: 16px; font-size: 13.5px; }
+  .toggle { width: 50px; height: 30px; border-radius: 15px; background: #4A535D; position: relative; flex: 0 0 50px; transition: background .2s; border: 0; cursor: pointer; }
+  .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 12px; background: #fff; transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .toggle.on { background: var(--signal); } .toggle.on::after { transform: translateX(20px); }
+  .seg { display: flex; background: var(--row); border-radius: 12px; padding: 3px; margin: 0 16px; }
+  .seg button { flex: 1; border: 0; background: none; color: var(--fog); font: 500 14px "Geist", system-ui; padding: 8px 0; border-radius: 9px; cursor: pointer; }
+  .seg button.on { background: var(--graphite); color: #F3F5F7; box-shadow: inset 0 1px 0 rgba(255,255,255,.1); }
+  .phone[data-theme="light"] .seg button.on { background: #fff; color: #1E2329; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  .view { animation: none; }
+  .view.push { animation: push .32s cubic-bezier(.2,.8,.2,1); }
+  .view.pop { animation: pop .32s cubic-bezier(.2,.8,.2,1); }
+  @keyframes push { from { transform: translateX(40px); opacity: 0 } }
+  @keyframes pop { from { transform: translateX(-40px); opacity: 0 } }
+
+  /* signing */
+  .days { margin: 6px 16px 0; background: var(--row); border-radius: 18px; padding: 18px; }
+  .days .big { font-size: 44px; font-weight: 300; letter-spacing: -1.5px; }
+  .days .big span { font-size: 17px; font-weight: 500; letter-spacing: 0; color: var(--fog); margin-left: 6px; }
+  .days .sub { color: var(--fog); font-size: 14px; margin-top: 2px; }
+  .segs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 16px 0 4px; }
+  .segs i { height: 10px; border-radius: 3px; background: var(--line); box-shadow: inset 0 0 0 1px var(--line); transition: background .3s; }
+  .segs i.on { background: var(--signal); box-shadow: none; }
+  .segs.low i.on { background: var(--alert); }
+  .progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 14px; display: none; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--signal); transition: width .3s; }
+  .refreshing .progress { display: block; }
+  .step { font-size: 13.5px; color: var(--fog); margin-top: 8px; min-height: 18px; }
+
+  /* app store */
+  .upd-head { display: flex; align-items: center; justify-content: space-between; margin: 18px 20px 8px; }
+  .upd-head b { font-size: 20px; font-weight: 600; letter-spacing: -.3px; }
+  .ring { width: 30px; height: 30px; }
+  .ring circle { fill: none; stroke-width: 3; }
+  .ring .bg { stroke: var(--line); } .ring .fg { stroke: var(--signal); stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; }
+  .empty { text-align: center; color: var(--fog); padding: 40px 30px; font-size: 15px; line-height: 1.45; }
+  .src-head { display: flex; gap: 12px; align-items: center; margin: 14px 20px 12px; }
+  .src-head img { width: 44px; height: 44px; border-radius: 12px; }
+  .src-head b { font-size: 18px; font-weight: 600; display: block; } .src-head small { color: var(--fog); font-size: 13px; }
+  .field { display: flex; gap: 8px; margin: 0 16px; }
+  .field input { flex: 1; border: 0; border-radius: 12px; background: var(--row); color: var(--label); font: 15px "Geist", system-ui; padding: 12px 14px; outline: none; }
+  .field input:focus { box-shadow: 0 0 0 2px var(--signal); }
+
+  /* browser */
+  .bar { position: absolute; left: 12px; right: 12px; bottom: 40px; height: 50px; border-radius: 16px; background: var(--surface-solid);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 8px 24px -10px rgba(0,0,0,.5); display: flex; align-items: center; gap: 4px; padding: 0 8px; z-index: 2; }
+  .bar .url { flex: 1; text-align: center; font-size: 14.5px; color: var(--label); }
+  .bar .url small { color: var(--fog); }
+  .bar button { border: 0; background: none; color: var(--label); width: 34px; height: 34px; border-radius: 10px; cursor: pointer; font-size: 17px; }
+  .webpage { padding: 70px 22px 120px; line-height: 1.5; font-size: 15px; }
+  .webpage .gh { font-size: 13px; color: var(--fog); margin-bottom: 14px; }
+  .webpage h3 { font-size: 26px; margin: 0 0 8px; letter-spacing: -.5px; font-weight: 600; }
+  .webpage p { color: var(--fog); margin: 0 0 14px; }
+  .webpage .blk { height: 120px; border-radius: 14px; background: var(--row); margin-bottom: 14px; }
+
+  /* gallery */
+  .gallery { display: grid; grid-template-columns: repeat(3,1fr); gap: 2px; margin-top: 4px; }
+  .gallery i { aspect-ratio: 1; display: block; }
+
+  /* guest apps */
+  .guest-note { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); font-size: 11.5px; padding: 5px 10px; border-radius: 8px; white-space: nowrap;
+    background: rgba(0,0,0,.55); color: #fff; pointer-events: none; }
+  .g-top { display: flex; align-items: center; gap: 10px; padding: 8px 16px 12px; font-weight: 600; font-size: 19px; }
+  .g-top img { width: 26px; height: 26px; border-radius: 7px; }
+  .ph { border-radius: 12px; background: rgba(255,255,255,.07); }
+  .ln { height: 10px; border-radius: 5px; background: rgba(255,255,255,.12); margin-top: 8px; }
+  .ln.s { width: 55% } .ln.m { width: 75% }
+
+  /* switcher */
+  #switcher { position: absolute; inset: 0; z-index: 40; display: none; }
+  #switcher.on { display: block; }
+  #switcher .shade { position: absolute; inset: 0; background: rgba(15,18,22,.55); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+  .phone[data-theme="light"] #switcher .shade { background: rgba(233,237,241,.6); }
+  .cards { position: absolute; left: 0; right: 0; top: 96px; height: 560px; display: flex; gap: 18px; overflow-x: auto; padding: 0 81px; align-items: flex-start; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .cards::-webkit-scrollbar { display: none; }
+  .card { flex: 0 0 212px; scroll-snap-align: center; touch-action: none; cursor: grab; }
+  .card .cap { display: flex; align-items: center; gap: 8px; height: 30px; margin-bottom: 10px; font-size: 13.5px; font-weight: 500; color: var(--label); }
+  .card .cap img, .card .cap .mini { width: 24px; height: 24px; border-radius: 6px; }
+  .card .frame { width: 212px; height: 459px; border-radius: 30px; overflow: hidden; position: relative; box-shadow: 0 20px 40px -14px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.06); }
+  .card .frame .app { position: absolute; transform: scale(.5653); visibility: visible; pointer-events: none; }
+  .sw-hint { position: absolute; bottom: 64px; left: 0; right: 0; text-align: center; color: var(--fog); font-size: 13px; }
+  .sw-empty { position: absolute; top: 45%; left: 0; right: 0; text-align: center; color: var(--fog); font-size: 15px; }
+
+  /* overlays */
+  #handle { position: absolute; left: 50%; bottom: 10px; width: 180px; height: 30px; margin-left: -90px; z-index: 70; border: 0; background: none; cursor: pointer; touch-action: none; }
+  #handle i { position: absolute; left: 30px; right: 30px; top: 12px; height: 5px; border-radius: 3px; background: var(--paper); opacity: .75; transition: background .2s, transform .2s, opacity .2s; }
+  .phone.in-app #handle i { background: #F3F5F7; mix-blend-mode: difference; }
+  #handle.armed i { background: var(--signal) !important; mix-blend-mode: normal !important; opacity: 1; transform: scaleX(1.25); }
+  #toast { position: absolute; top: 60px; left: 50%; transform: translate(-50%, -12px); z-index: 80; background: var(--surface-solid); color: var(--label);
+    font-size: 13.5px; font-weight: 500; padding: 10px 14px; border-radius: 14px; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 10px 26px -10px rgba(0,0,0,.6); max-width: 320px; text-align: center; }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  #menu { position: absolute; z-index: 75; width: 230px; background: var(--surface-solid); border-radius: 16px; overflow: hidden; display: none;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 20px 40px -10px rgba(0,0,0,.6); }
+  #menu.on { display: block; animation: pop-in .18s ease-out; }
+  @keyframes pop-in { from { transform: scale(.92); opacity: 0 } }
+  #menu button { display: flex; justify-content: space-between; width: 100%; border: 0; background: none; color: var(--label); font: 15px "Geist", system-ui; padding: 12px 16px; cursor: pointer; text-align: left; }
+  #menu button + button { box-shadow: inset 0 1px 0 var(--line); }
+  #menu button.danger { color: var(--alert); }
+  #menu-shade { position: absolute; inset: 0; z-index: 74; display: none; }
+  #menu-shade.on { display: block; }
+  .phone :focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+  /* ---------- notes column (uses the thread's theme) ---------- */
+  .notes { flex: 1 1 240px; min-width: 240px; max-width: 320px; color: var(--foreground); font-size: 14px; line-height: 1.5; padding-top: 14px; }
+  .notes h3 { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+  .notes p { margin: 0 0 14px; color: var(--muted-foreground); }
+  .notes ul { margin: 0 0 16px; padding-left: 18px; color: var(--muted-foreground); }
+  .notes li { margin-bottom: 5px; }
+  .notes li b { color: var(--foreground); font-weight: 600; }
+  .ctl { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .ctl button { border: 1px solid var(--border); background: var(--secondary); color: var(--secondary-foreground); border-radius: calc(var(--radius) - 2px); padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+  .ctl button[aria-pressed="true"] { border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
+  .swatches { display: flex; gap: 8px; margin-bottom: 18px; }
+  .swatches button { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+  .swatches button[aria-pressed="true"] { border-color: var(--foreground); }
+  @media (prefers-reduced-motion: reduce) { .chip .eq i { animation: none; height: 6px; } }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="phone-wrap" id="wrap">
+    <div class="phone" id="phone" data-theme="dark">
+      <canvas id="wall"></canvas>
+
+      <div class="iosbar" aria-hidden="true">
+        <span id="iostime">9:41</span>
+        <div class="island"></div>
+        <span class="right">
+          <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2.6c2.2 0 4.2.9 5.7 2.3l1.1-1.1A9.6 9.6 0 0 0 8 1 9.6 9.6 0 0 0 1.2 3.8l1.1 1.1A8 8 0 0 1 8 2.6zm0 3.2c1.3 0 2.6.5 3.5 1.4l1.1-1.1A6.6 6.6 0 0 0 8 4.2c-1.8 0-3.4.7-4.6 1.9l1.1 1.1c.9-.9 2.2-1.4 3.5-1.4zm0 3.2c-.6 0-1.1.2-1.4.6L8 11l1.4-1.4c-.3-.4-.8-.6-1.4-.6z"/></svg>
+          <svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2" y="2" width="17" height="9" rx="2"/><rect x="24.5" y="4.5" width="1.6" height="4" rx=".8" opacity=".4"/></svg>
+        </span>
+      </div>
+
+      <section id="home">
+        <div class="clock"><div class="t" id="clock">14:07</div><div class="d" id="date">Thursday 16 October</div></div>
+        <div class="strip" id="strip"></div>
+        <button class="btn primary small done-pill" id="done">Done</button>
+        <div class="pages" id="pages"></div>
+        <div class="dots" id="dots"></div>
+        <nav class="dock" id="dock" aria-label="Dock"></nav>
+      </section>
+
+      <div id="apps"></div>
+
+      <div id="switcher">
+        <div class="shade"></div>
+        <div class="cards" id="cards"></div>
+        <div class="sw-hint">Drag a card up to quit the app</div>
+      </div>
+
+      <div id="menu-shade"></div>
+      <div id="menu" role="menu"></div>
+      <div id="toast" role="status" aria-live="polite"></div>
+      <button id="handle" aria-label="pseudOS handle: tap for home, hold for the app switcher"><i></i></button>
+    </div>
+  </div>
+
+  <aside class="notes">
+    <h3>Try it</h3>
+    <ul>
+      <li><b>Tap an icon</b> to open it. Guest apps are mocks; system apps work.</li>
+      <li><b>Tap the handle</b> at the bottom to go home. <b>Hold it</b> for the app switcher. Keys: H and S.</li>
+      <li><b>Drag a card up</b> in the switcher to quit that app.</li>
+      <li><b>Long-press an icon</b> for its menu, including Edit Home Screen.</li>
+      <li>Open a 5th app to hit the <b>running limit</b> (4).</li>
+      <li>The <b>chips under the clock</b> jump to updates, running apps and signing.</li>
+      <li>Settings has <b>Signing</b> with Refresh now, and <b>Appearance</b>.</li>
+    </ul>
+    <h3>Look</h3>
+    <div class="ctl" id="ctl-theme">
+      <button data-theme="dark" aria-pressed="true">Dark</button>
+      <button data-theme="light" aria-pressed="false">Light</button>
+      <button id="reroll">New wallpaper</button>
+      <button id="motion" aria-pressed="false">Reduce motion</button>
+    </div>
+    <div class="swatches" id="swatches" aria-label="Accent color"></div>
+    <p>Every install gets its own contour wallpaper from a seed; the amber mark is its summit. The accent marks attention only: badges, running dots, progress, the armed handle.</p>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const $ = (s, r = document) => r.querySelector(s);
+  const phone = $('#phone');
+  const W = 375, H = 812;
+  const ICONS = 'https://ometavr.github.io/ipa-source/icons/';
+
+  // ---------- glyphs for stock apps ----------
+  const G = {
+    settings: '<circle cx="12" cy="12" r="6.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8"/><circle class="af" cx="12" cy="12" r="2.4"/>',
+    browser: '<circle cx="12" cy="12" r="9"/><path class="af" d="M12 4.6 14.2 12H9.8z"/><path d="M9.8 12h4.4L12 19.4z"/>',
+    store: '<path d="M5 9h14l-1.2 11H6.2z"/><path class="a" d="M9 9V7.2a3 3 0 0 1 6 0V9"/>',
+    library: '<path class="a" d="M12 4l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4M4 16l8 4 8-4"/>',
+    files: '<path d="M3.5 7.2c0-1 .8-1.7 1.7-1.7h4l2 2h7.6c1 0 1.7.8 1.7 1.7v7.6c0 1-.8 1.7-1.7 1.7H5.2c-1 0-1.7-.8-1.7-1.7z"/><path class="a" d="M7 13h5"/>',
+    gallery: '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M4 17l5-5 4 4 3-3 4 4"/><circle class="af" cx="16" cy="9.2" r="1.7"/>',
+    sign: '<path d="M12 3l7 3v5c0 4.5-3 8-7 9.5C8 19 5 15.5 5 11V6z"/><path class="a" d="M9 12l2 2 4-4"/>',
+    look: '<circle cx="12" cy="12" r="8.5"/><path class="a" d="M12 3.5a8.5 8.5 0 0 1 0 17z"/>',
+    multi: '<rect x="4" y="5" width="9" height="14" rx="2"/><path class="a" d="M16 7h2.5c.8 0 1.5.7 1.5 1.5v7c0 .8-.7 1.5-1.5 1.5H16"/>',
+    adv: '<path d="M5 7h14M5 12h14M5 17h14"/><circle class="af" cx="9" cy="7" r="1.8"/><circle class="af" cx="15" cy="12" r="1.8"/><circle class="af" cx="8" cy="17" r="1.8"/>',
+    about: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5"/><circle class="af" cx="12" cy="7.8" r="1.2"/>',
+    key: '<circle cx="8" cy="15" r="4"/><path class="a" d="M11 12l8-8M16 7l2 2"/>',
+    phoneLink: '<rect x="7" y="3" width="10" height="18" rx="2.5"/><path class="a" d="M10 6h4"/>',
+  };
+  const svg = (k, cls = '') => `<svg viewBox="0 0 24 24" class="${cls}" aria-hidden="true">${G[k]}</svg>`;
+
+  // ---------- apps ----------
+  const A = {
+    settings: { name: 'Settings', sys: 'settings' },
+    browser:  { name: 'Browser', sys: 'browser' },
+    store:    { name: 'App Store', sys: 'store' },
+    library:  { name: 'Library', sys: 'library' },
+    files:    { name: 'Files', sys: 'files' },
+    gallery:  { name: 'Gallery', sys: 'gallery' },
+    discord:  { name: 'Discord', img: 'distra.png', brand: '#5865F2', bg: '#313338', ver: '348.0', sub: 'Distra' },
+    youtube:  { name: 'YouTube', img: 'youtube.png', brand: '#FF0033', bg: '#0F0F0F', ver: '21.20.4', sub: 'uYouEnhanced' },
+    spotify:  { name: 'Spotify', img: 'spotify.png', brand: '#1DB954', bg: '#121212', ver: '9.1.85', sub: 'EeveeSpotify' },
+    apollo:   { name: 'Apollo', img: 'apollo.png', brand: '#5D7FFF', bg: '#16181D', ver: '3.9.0', sub: 'Apollo Reborn' },
+    ytmusic:  { name: 'YT Music', img: 'ytmusic.png', brand: '#FF0033', bg: '#030303', ver: '9.41.2', sub: 'YTMusicUltimate' },
+    soundcloud:{ name: 'SoundCloud', img: 'soundcloud.png', brand: '#FF5500', bg: '#121212', ver: '8.82.0', sub: 'SCMusicPlus' },
+    twitter:  { name: 'Twitter', img: 'neofreebird.png', brand: '#1DA1F2', bg: '#000000', ver: '12.35', sub: 'NeoFreeBird' },
+    itorrent: { name: 'iTorrent', img: 'itorrent.png', brand: '#5856D6', bg: '#1C1C1E', ver: '2.2.0', sub: 'iTorrent' },
+    feather:  { name: 'Feather', img: 'feather.png', brand: '#848EF9', bg: '#1C1C1E', ver: '2.9.0', sub: 'Feather' },
+  };
+  let layout = [['discord','youtube','spotify','apollo','ytmusic','soundcloud','twitter','files','gallery'], ['itorrent','feather']];
+  const dock = ['browser', 'store', 'library', 'settings'];
+
+  const S = {
+    running: [], fg: null, limit: 4, days: 6, reduce: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    seed: Math.floor(Math.random() * 1e6), accent: '#FFB000', editing: false,
+    updates: [
+      { id: 'youtube', from: '21.20.4', to: '21.20.4', note: 'Same version, new build: fork fixes from Meta’s Apps' },
+      { id: 'spotify', from: '9.1.85', to: '9.1.88', note: 'Lyrics provider fixes' },
+    ],
+    autoRefresh: true,
+  };
+  const screens = new Map();
+
+  // ---------- helpers ----------
+  const tileHTML = id => {
+    const a = A[id];
+    return a.sys ? `<span class="tile">${svg(a.sys)}</span>` : `<span class="tile"><img src="${ICONS + a.img}" alt="" draggable="false"></span>`;
+  };
+  const glHTML = id => A[id].sys ? `<span class="gl">${svg(A[id].sys)}</span>` : `<span class="gl"><img src="${ICONS + A[id].img}" alt=""></span>`;
+  let toastT;
+  const toast = msg => { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); };
+  const rel = el => { const p = phone.getBoundingClientRect(), r = el.getBoundingClientRect(), z = p.width / W; return { x: (r.left - p.left) / z, y: (r.top - p.top) / z, w: r.width / z, h: r.height / z }; };
+  const anim = (el, frames, ms = 380, easing = 'cubic-bezier(.2,.85,.25,1)') => S.instant ? Promise.resolve() : S.reduce
+    ? el.animate([{ opacity: frames[0].opacity ?? 0 }, { opacity: frames[1].opacity ?? 1 }], { duration: 160 }).finished
+    : el.animate(frames, { duration: ms, easing }).finished;
+
+  // ---------- wallpaper: seeded contour lines ----------
+  function drawWall() {
+    const c = $('#wall'), dpr = Math.min(devicePixelRatio || 1, 2);
+    c.width = W * dpr; c.height = H * dpr;
+    const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const light = phone.dataset.theme === 'light';
+    const base = g.createLinearGradient(0, 0, 0, H);
+    base.addColorStop(0, light ? '#EEF1F4' : '#232931'); base.addColorStop(1, light ? '#E2E7EC' : '#181C21');
+    g.fillStyle = base; g.fillRect(0, 0, W, H);
+    let s = S.seed >>> 0; const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const N = 64, grid = Array.from({ length: N * N }, rnd);
+    const sm = t => t * t * (3 - 2 * t);
+    const vn = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), xf = sm(x - xi), yf = sm(y - yi);
+      const v = (i, j) => grid[((j & 63) * N) + (i & 63)];
+      const a = v(xi, yi), b = v(xi + 1, yi), c2 = v(xi, yi + 1), d = v(xi + 1, yi + 1);
+      return a + (b - a) * xf + (c2 - a) * yf + (a - b - c2 + d) * xf * yf; };
+    const ox = rnd() * 40, oy = rnd() * 40;
+    const f = (x, y) => { let t = 0, amp = .55, fr = 1 / 150; for (let o = 0; o < 4; o++) { t += amp * vn(x * fr + ox, y * fr + oy); amp *= .5; fr *= 2.03; } return t; };
+    const cs = 6, cols = Math.ceil(W / cs) + 1, rows = Math.ceil(H / cs) + 1, F = new Float32Array(cols * rows);
+    let mn = 9, mx = -9, peak = [0, 0];
+    let pk = -9;
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) { const x = i * cs, y = j * cs, v = f(x, y); F[j * cols + i] = v; if (v < mn) mn = v; if (v > mx) mx = v;
+      // the summit mark stays clear of the edges, the clock and the dock
+      if (v > pk && x > 40 && x < W - 70 && y > 250 && y < H - 160) { pk = v; peak = [x, y]; } }
+    const levels = 22, step = (mx - mn) / levels;
+    for (let L = 1; L < levels; L++) {
+      const iso = mn + L * step, index = L % 5 === 0;
+      g.strokeStyle = light ? `rgba(30,35,41,${index ? .22 : .10})` : `rgba(201,209,217,${index ? .20 : .085})`;
+      g.lineWidth = index ? 1.1 : .8; g.beginPath();
+      for (let j = 0; j < rows - 1; j++) for (let i = 0; i < cols - 1; i++) {
+        const a = F[j * cols + i], b = F[j * cols + i + 1], c2 = F[(j + 1) * cols + i + 1], d = F[(j + 1) * cols + i];
+        const k = (a > iso) | ((b > iso) << 1) | ((c2 > iso) << 2) | ((d > iso) << 3);
+        if (k === 0 || k === 15) continue;
+        const x = i * cs, y = j * cs, lerp = (p, q) => (iso - p) / (q - p);
+        const T = [x + cs * lerp(a, b), y], R = [x + cs, y + cs * lerp(b, c2)], B = [x + cs * lerp(d, c2), y + cs], Lp = [x, y + cs * lerp(a, d)];
+        const seg = (p, q) => { g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); };
+        switch (k) { case 1: case 14: seg(Lp, T); break; case 2: case 13: seg(T, R); break; case 3: case 12: seg(Lp, R); break;
+          case 4: case 11: seg(R, B); break; case 5: seg(Lp, T); seg(R, B); break; case 6: case 9: seg(T, B); break;
+          case 7: case 8: seg(Lp, B); break; case 10: seg(T, R); seg(Lp, B); break; }
+      }
+      g.stroke();
+    }
+    // the summit mark: the one amber detail
+    g.strokeStyle = S.accent; g.lineWidth = 1.4; g.beginPath();
+    g.moveTo(peak[0] - 6, peak[1]); g.lineTo(peak[0] + 6, peak[1]); g.moveTo(peak[0], peak[1] - 6); g.lineTo(peak[0], peak[1] + 6); g.stroke();
+    g.fillStyle = S.accent; g.font = '500 10px Geist, system-ui'; g.fillText(String(1000 + (S.seed % 3000)), peak[0] + 8, peak[1] - 6);
+  }
+
+  // ---------- home ----------
+  function iconBtn(id, inDock) {
+    const a = A[id], b = document.createElement('button');
+    b.className = 'icon'; b.dataset.id = id; b.setAttribute('aria-label', a.name);
+    const badge = id === 'store' && S.updates.length ? `<span class="badge">${S.updates.length}</span>` : '';
+    b.innerHTML = `<span class="rm" aria-hidden="true">−</span>${badge}${tileHTML(id)}<span class="running-dot"></span><span class="lbl">${a.name}</span>`;
+    let pressT, long = false;
+    b.addEventListener('pointerdown', e => { long = false; pressT = setTimeout(() => { long = true; openMenu(id, b); }, 480); });
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, () => clearTimeout(pressT)));
+    b.addEventListener('contextmenu', e => { e.preventDefault(); clearTimeout(pressT); long = true; openMenu(id, b); });
+    b.addEventListener('click', e => {
+      if (long) return;
+      if (S.editing) { if (!inDock && e.target.closest('.rm')) removeFromHome(id); return; }
+      openApp(id, b);
+    });
+    return b;
+  }
+  function renderHome() {
+    const pages = $('#pages'); pages.innerHTML = '';
+    layout.forEach(p => { const pg = document.createElement('div'); pg.className = 'page'; p.forEach(id => pg.appendChild(iconBtn(id))); pages.appendChild(pg); });
+    $('#dots').innerHTML = layout.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('');
+    const d = $('#dock'); d.innerHTML = ''; dock.forEach(id => d.appendChild(iconBtn(id, true)));
+    markRunning(); renderStrip();
+  }
+  $('#pages').addEventListener('scroll', e => { const i = Math.round(e.target.scrollLeft / e.target.clientWidth); [...$('#dots').children].forEach((d, k) => d.classList.toggle('on', k === i)); });
+  function markRunning() { phone.querySelectorAll('#home .icon').forEach(b => b.classList.toggle('running', S.running.includes(b.dataset.id))); }
+  function renderStrip() {
+    const st = $('#strip'), out = [];
+    if (S.updates.length) out.push(`<button class="chip" data-go="updates"><span class="dot"></span>${S.updates.length} update${S.updates.length > 1 ? 's' : ''}</button>`);
+    if (S.running.includes('spotify')) out.push(`<button class="chip" data-go="spotify"><span class="eq"><i></i><i></i><i></i></span>Spotify playing</button>`);
+    if (S.running.length) out.push(`<button class="chip" data-go="switcher">${S.running.length} running</button>`);
+    out.push(`<button class="chip ${S.days <= 2 ? 'warn' : ''}" data-go="signing">${S.days <= 2 ? '<span class="dot"></span>' : ''}Signed for ${S.days} day${S.days === 1 ? '' : 's'}</button>`);
+    st.innerHTML = out.join('');
+  }
+  $('#strip').addEventListener('click', e => {
+    const go = e.target.closest('.chip')?.dataset.go; if (!go) return;
+    if (go === 'switcher') return openSwitcher();
+    if (go === 'spotify') return openApp('spotify', iconFor('spotify'));
+    if (go === 'updates') { openApp('store', iconFor('store')); storeTab('updates'); return; }
+    if (go === 'signing') { openApp('settings', iconFor('settings')); settingsGo('signing', true); }
+  });
+  const iconFor = id => phone.querySelector(`#home .icon[data-id="${id}"]`);
+  function removeFromHome(id) { layout = layout.map(p => p.filter(x => x !== id)); renderHome(); toast(`Removed ${A[id].name} from Home. It's still in Library.`); }
+  $('#done').addEventListener('click', () => { S.editing = false; $('#home').classList.remove('editing'); });
+
+  // ---------- context menu ----------
+  function openMenu(id, b) {
+    const r = rel(b), m = $('#menu'), a = A[id];
+    const items = a.sys ? [['Open', 'open'], ['Edit Home Screen', 'edit']]
+      : [['Open', 'open'], ['Open full screen', 'full'], ['App info', 'info'], ['Edit Home Screen', 'edit'], ['Remove from Home', 'remove', 'danger']];
+    m.innerHTML = items.map(([t, act, cls]) => `<button role="menuitem" data-act="${act}" class="${cls || ''}">${t}</button>`).join('');
+    const top = r.y + r.h + 8 + 220 > H ? r.y - 8 - items.length * 47 : r.y + r.h + 8;
+    m.style.left = Math.min(Math.max(12, r.x - 20), W - 242) + 'px'; m.style.top = top + 'px';
+    m.classList.add('on'); $('#menu-shade').classList.add('on');
+    m.onclick = e => {
+      const act = e.target.closest('button')?.dataset.act; closeMenu();
+      if (act === 'open') openApp(id, b);
+      if (act === 'full') toast(`${a.name} would take over the whole screen (classic launch). Use it for apps that misbehave in pseudOS.`);
+      if (act === 'info') { openApp('library', iconFor('library')); }
+      if (act === 'edit') { S.editing = true; $('#home').classList.add('editing'); }
+      if (act === 'remove') removeFromHome(id);
+    };
+  }
+  const closeMenu = () => { $('#menu').classList.remove('on'); $('#menu-shade').classList.remove('on'); };
+  $('#menu-shade').addEventListener('pointerdown', closeMenu);
+
+  // ---------- screens ----------
+  function buildScreen(id) {
+    const a = A[id], el = document.createElement('div');
+    el.className = 'app'; el.dataset.id = id;
+    if (a.sys) { el.classList.add('sys'); SYS[id](el); }
+    else guest(el, id);
+    $('#apps').appendChild(el); screens.set(id, el); return el;
+  }
+  function guest(el, id) {
+    const a = A[id]; el.style.background = a.bg; el.style.color = '#fff';
+    let body = '';
+    if (id === 'youtube') body = [1, 2, 3].map(() => `<div style="margin:0 0 18px"><div class="ph" style="height:196px;border-radius:0;background:linear-gradient(135deg,#2a2a2a,#3b1d22)"></div><div style="display:flex;gap:10px;padding:10px 14px"><div class="ph" style="width:36px;height:36px;border-radius:18px;flex:none"></div><div style="flex:1"><div class="ln m"></div><div class="ln s"></div></div></div></div>`).join('');
+    else if (id === 'spotify') body = `<div style="padding:0 16px"><div class="ph" style="height:300px;background:linear-gradient(160deg,#1DB954,#0c3d1e)"></div><div style="margin-top:18px;font-size:22px;font-weight:600">Now playing</div><div style="color:#b3b3b3;margin-top:4px">Keeps playing while you use other apps</div><div style="height:4px;border-radius:2px;background:#333;margin-top:22px"><div style="width:38%;height:100%;background:#fff;border-radius:2px"></div></div><div style="display:flex;justify-content:center;gap:34px;margin-top:22px;font-size:28px">⏮ <span style="width:58px;height:58px;border-radius:29px;background:#fff;color:#000;display:inline-flex;align-items:center;justify-content:center;font-size:22px">❚❚</span> ⏭</div></div>`;
+    else if (id === 'discord') body = [1, 2, 3, 4, 5, 6].map(() => `<div style="display:flex;gap:12px;padding:10px 16px"><div class="ph" style="width:40px;height:40px;border-radius:20px;flex:none;background:#5865F2"></div><div style="flex:1"><div class="ln s"></div><div class="ln"></div><div class="ln m"></div></div></div>`).join('');
+    else body = [1, 2, 3, 4].map(() => `<div style="padding:12px 16px"><div class="ph" style="height:90px"></div><div class="ln m"></div><div class="ln s"></div></div>`).join('');
+    el.innerHTML = `<div class="scroll"><div class="g-top"><img src="${ICONS + a.img}" alt="">${a.name}</div>${body}</div><div class="guest-note">${a.sub} ${a.ver}, running in its own process</div>`;
+  }
+
+  // Settings
+  const SYS = {};
+  SYS.settings = el => { el.innerHTML = `<div class="scroll"><div class="view" id="set-view"></div></div>`; settingsRender(el, 'root'); };
+  function settingsRender(el, page, dir) {
+    const v = $('#set-view', el); v.className = 'view' + (dir ? ' ' + dir : ''); void v.offsetWidth;
+    const back = `<button class="back" data-nav="root">‹ Settings</button>`;
+    if (page === 'root') v.innerHTML = `<h1>Settings</h1>
+      <div class="group">
+        <button class="row" data-nav="signing">${`<span class="gl">${svg('sign')}</span>`}<span class="tx"><b>Signing</b></span><span class="val">${S.days} days left</span><span class="chev">›</span></button>
+        <button class="row" data-nav="look"><span class="gl">${svg('look')}</span><span class="tx"><b>Appearance</b></span><span class="val">${phone.dataset.theme === 'dark' ? 'Dark' : 'Light'}</span><span class="chev">›</span></button>
+        <button class="row" data-nav="multi"><span class="gl">${svg('multi')}</span><span class="tx"><b>Multitasking</b></span><span class="val">${S.limit} apps</span><span class="chev">›</span></button>
+      </div>
+      <h2>LiveContainer</h2>
+      <div class="group">
+        <button class="row" data-open="library"><span class="gl">${svg('library')}</span><span class="tx"><b>Library</b><small>Install IPAs, containers, tweaks</small></span><span class="chev">›</span></button>
+        <button class="row" data-nav="adv"><span class="gl">${svg('adv')}</span><span class="tx"><b>Advanced</b><small>JIT, JIT-less diagnostics, data</small></span><span class="chev">›</span></button>
+      </div>
+      <h2>pseudOS</h2>
+      <div class="group">
+        <button class="row" data-act="classic"><span class="gl">${svg('phoneLink')}</span><span class="tx"><b>Use classic LiveContainer UI</b><small>Switch back any time from Library</small></span></button>
+        <button class="row" data-nav="about"><span class="gl">${svg('about')}</span><span class="tx"><b>About pseudOS</b></span><span class="val">Beta 1</span><span class="chev">›</span></button>
+      </div>`;
+    else if (page === 'signing') v.innerHTML = `${back}<h1>Signing</h1>
+      <div class="days ${S.refreshing ? 'refreshing' : ''}" id="days">
+        <div class="big">${S.days}<span>day${S.days === 1 ? '' : 's'} left</span></div>
+        <div class="sub">pseudOS is signed until ${until()}. Refresh before then or it won't open.</div>
+        <div class="segs ${S.days <= 2 ? 'low' : ''}">${Array.from({ length: 7 }, (_, i) => `<i class="${i < S.days ? 'on' : ''}"></i>`).join('')}</div>
+        <div class="progress"><i id="prog"></i></div><div class="step" id="step"></div>
+        <button class="btn primary" id="refresh" style="width:100%;margin-top:10px" ${S.refreshing ? 'disabled' : ''}>${S.refreshing ? 'Refreshing…' : 'Refresh now'}</button>
+      </div>
+      <div class="group" style="margin-top:14px">
+        <div class="row"><span class="tx"><b>Refresh automatically</b><small>When 2 days are left, while pseudOS is open</small></span><button class="toggle ${S.autoRefresh ? 'on' : ''}" id="auto" aria-label="Refresh automatically"></button></div>
+      </div>
+      <h2>Certificate and account</h2>
+      <div class="group">
+        <div class="row"><span class="gl">${svg('key')}</span><span class="tx"><b>Certificate</b><small>Imported from SideStore on 15 October</small></span></div>
+        <button class="row" data-act="sidestore"><span class="gl">${svg('store')}</span><span class="tx"><b>SideStore setup</b><small>Apple Account, pairing file, connection</small></span><span class="chev">›</span></button>
+      </div>`;
+    else if (page === 'look') v.innerHTML = `${back}<h1>Appearance</h1>
+      <div class="seg" id="theme-seg"><button data-t="dark" class="${phone.dataset.theme === 'dark' ? 'on' : ''}">Dark</button><button data-t="light" class="${phone.dataset.theme === 'light' ? 'on' : ''}">Light</button></div>
+      <h2>Wallpaper</h2>
+      <div class="group"><button class="row" data-act="reroll"><span class="gl">${svg('gallery')}</span><span class="tx"><b>New terrain</b><small>Seed ${S.seed}</small></span></button></div>
+      <h2>Accent</h2>
+      <div class="group"><div class="row" id="acc-row" style="gap:14px">${ACCENTS.map(c => `<button data-acc="${c}" aria-label="Accent ${c}" style="width:30px;height:30px;border-radius:15px;border:0;cursor:pointer;background:${c};box-shadow:${c === S.accent ? '0 0 0 2px var(--app-bg),0 0 0 4px ' + c : 'none'}"></button>`).join('')}</div></div>`;
+    else if (page === 'multi') v.innerHTML = `${back}<h1>Multitasking</h1>
+      <div class="group">
+        <div class="row"><span class="tx"><b>Running apps</b><small>Opening one more closes the one you used longest ago</small></span>
+          <button class="btn quiet small" data-lim="-1" aria-label="Fewer">−</button><span class="val" style="min-width:18px;text-align:center;color:var(--label)">${S.limit}</span><button class="btn quiet small" data-lim="1" aria-label="More">+</button></div>
+        <div class="row"><span class="tx"><b>Open apps</b><small>Inside pseudOS, or full screen (classic)</small></span><span class="val">Inside pseudOS</span></div>
+      </div>`;
+    else if (page === 'adv') v.innerHTML = `${back}<h1>Advanced</h1><div class="empty">This page shows LiveContainer's own settings unchanged: JIT, JIT-less certificate diagnostics, multiple LiveContainers, storage and developer options.</div>`;
+    else if (page === 'about') v.innerHTML = `${back}<h1>About</h1><div class="group"><div class="row"><span class="tx"><b>pseudOS</b></span><span class="val">Beta 1</span></div><div class="row"><span class="tx"><b>Built on LiveContainer</b></span><span class="val">3.8.10</span></div><div class="row"><span class="tx"><b>Running apps</b></span><span class="val">${S.running.length} of ${S.limit}</span></div></div>`;
+    el.dataset.page = page;
+  }
+  const until = () => { const d = new Date(); d.setDate(d.getDate() + S.days); return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }); };
+  function settingsGo(page, instant) { const el = screens.get('settings'); if (el) settingsRender(el, page, instant ? '' : 'push'); }
+  const ACCENTS = ['#FFB000', '#4FD1C5', '#FF6B9A', '#9DB4FF'];
+  $('#apps').addEventListener('click', e => {
+    const el = e.target.closest('.app'); if (!el) return;
+    const id = el.dataset.id, t = e.target.closest('[data-nav],[data-act],[data-open],[data-t],[data-acc],[data-lim],#refresh,#auto,[data-tab],[data-upd],[data-get],#addsrc,#upall,.bar button');
+    if (!t) return;
+    if (id === 'settings') {
+      if (t.dataset.nav) return settingsRender(el, t.dataset.nav, t.dataset.nav === 'root' ? 'pop' : 'push');
+      if (t.dataset.open) return openApp(t.dataset.open, iconFor(t.dataset.open));
+      if (t.dataset.act === 'classic') return toast('pseudOS would hand over to the classic LiveContainer interface.');
+      if (t.dataset.act === 'sidestore') return toast('Opens SideStore’s own setup screens, inside pseudOS.');
+      if (t.dataset.act === 'reroll') { reroll(); return settingsRender(el, 'look'); }
+      if (t.dataset.t) { setTheme(t.dataset.t); return settingsRender(el, 'look'); }
+      if (t.dataset.acc) { setAccent(t.dataset.acc); return settingsRender(el, 'look'); }
+      if (t.dataset.lim) { S.limit = Math.min(6, Math.max(2, S.limit + +t.dataset.lim)); return settingsRender(el, 'multi'); }
+      if (t.id === 'auto') { S.autoRefresh = !S.autoRefresh; t.classList.toggle('on', S.autoRefresh); return; }
+      if (t.id === 'refresh') return refresh(el);
+    }
+    if (id === 'store') {
+      if (t.dataset.tab) return storeTab(t.dataset.tab);
+      if (t.dataset.upd) return update(t.dataset.upd, t);
+      if (t.id === 'upall') return [...S.updates].forEach(u => { const b = el.querySelector(`[data-upd="${u.id}"]`); if (b) update(u.id, b); });
+      if (t.dataset.get) { const gid = t.dataset.get; if (t.textContent === 'Open') return openApp(gid, iconFor(gid)); return; }
+      if (t.id === 'addsrc') { const i = $('#srcin', el); toast(i.value ? 'Source added. Its apps show up in Browse.' : 'Paste a source URL first.'); i.value = ''; return; }
+    }
+    if (id === 'browser' && t.closest('.bar')) toast('Browser controls are placeholders in this mockup.');
+  });
+  function refresh(el) {
+    if (S.refreshing) return; S.refreshing = true; settingsRender(el, 'signing');
+    const steps = [['Starting SideStore', 12], ['Connecting to this iPhone', 38], ['Signing pseudOS', 74], ['Installing', 92], ['Signed for 7 days', 100]];
+    let i = 0;
+    const tick = () => {
+      const [txt, p] = steps[i]; const pr = $('#prog', el), st = $('#step', el);
+      if (pr) pr.style.width = p + '%'; if (st) st.textContent = txt;
+      if (++i < steps.length) setTimeout(tick, 700); else setTimeout(() => { S.refreshing = false; S.days = 7; if (el.dataset.page === 'signing') settingsRender(el, 'signing'); renderStrip(); }, 900);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  // App Store
+  SYS.store = el => { el.innerHTML = `<div class="scroll"><h1>App Store</h1><div class="seg" id="store-seg"><button data-tab="browse">Browse</button><button data-tab="updates" class="on">Updates</button><button data-tab="sources">Sources</button></div><div id="store-body"></div></div>`; storeTab('updates', el); };
+  function storeTab(tab, el = screens.get('store')) {
+    if (!el) return; el.querySelectorAll('#store-seg button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+    const body = $('#store-body', el); el.dataset.tab = tab;
+    if (tab === 'updates') body.innerHTML = S.updates.length ? `<div class="upd-head"><b>${S.updates.length} update${S.updates.length > 1 ? 's' : ''}</b><button class="btn primary small" id="upall">Update all</button></div>
+      <div class="group">${S.updates.map(u => `<div class="row">${glHTML(u.id)}<span class="tx"><b>${A[u.id].name}</b><small>${u.from === u.to ? u.to + ', rebuilt' : u.from + ' → ' + u.to}</small><small>${u.note}</small></span><button class="btn tint small" data-upd="${u.id}">Update</button></div>`).join('')}</div>
+      <h2>Checked against your sources when pseudOS opens</h2>`
+      : `<div class="empty">Everything is up to date.<br>pseudOS checks your sources each time it opens.</div>`;
+    if (tab === 'browse') body.innerHTML = `<div class="src-head"><img src="${ICONS}source.png" alt=""><span><b>Meta’s Apps</b><small>Custom builds and forks by OMetaVR</small></span></div>
+      <div class="group">${['discord', 'youtube', 'spotify', 'apollo', 'twitter', 'feather', 'itorrent'].map(id => `<div class="row">${glHTML(id)}<span class="tx"><b>${A[id].sub}</b><small>${A[id].ver}</small></span><button class="btn quiet small" data-get="${id}">Open</button></div>`).join('')}</div>`;
+    if (tab === 'sources') body.innerHTML = `<h2>Your sources</h2><div class="group"><div class="row"><span class="gl"><img src="${ICONS}source.png" alt=""></span><span class="tx"><b>Meta’s Apps</b><small>ometavr.github.io/ipa-source</small></span><span class="val">11 apps</span></div></div>
+      <h2>Add a source</h2><div class="field"><input id="srcin" placeholder="https://…/source.json" aria-label="Source URL"><button class="btn primary" id="addsrc">Add</button></div>`;
+  }
+  function update(id, btn) {
+    if (btn.dataset.busy) return; btn.dataset.busy = 1;
+    if (S.running.includes(id)) { quit(id); toast(`Closed ${A[id].name} to update it`); }
+    const C = 2 * Math.PI * 12;
+    btn.outerHTML = `<svg class="ring" viewBox="0 0 30 30" data-ring="${id}"><circle class="bg" cx="15" cy="15" r="12"/><circle class="fg" cx="15" cy="15" r="12" stroke-dasharray="${C}" stroke-dashoffset="${C}"/></svg>`;
+    const ring = phone.querySelector(`[data-ring="${id}"] .fg`);
+    ring.animate([{ strokeDashoffset: C }, { strokeDashoffset: 0 }], { duration: 2200, easing: 'ease-in-out', fill: 'forwards' }).finished.then(() => {
+      S.updates = S.updates.filter(u => u.id !== id); A[id].ver = A[id].ver; renderHome();
+      const host = phone.querySelector(`[data-ring="${id}"]`); if (host) host.outerHTML = `<button class="btn quiet small" data-get="${id}">Open</button>`;
+      if (!S.updates.length) setTimeout(() => storeTab('updates'), 600);
+    });
+  }
+
+  SYS.browser = el => { el.innerHTML = `<div class="scroll"><div class="webpage"><div class="gh">github.com/OMetaVR/pseudOS</div><h3>pseudOS</h3><p>An OS-style shell for LiveContainer: home screen, app switcher and system apps, with your apps running side by side.</p><div class="blk"></div><p>Links to apps you have installed open them inside pseudOS.</p><div class="blk"></div><div class="blk"></div></div></div>
+    <div class="bar"><button aria-label="Back">‹</button><button aria-label="Forward">›</button><span class="url"><small>🔒 </small>github.com</span><button aria-label="Share">⤴</button><button aria-label="Tabs">❐</button></div>`; };
+  SYS.files = el => { el.innerHTML = `<div class="scroll"><h1>Files</h1><h2>App data</h2><div class="group">${['discord', 'youtube', 'spotify', 'apollo', 'twitter'].map((id, i) => `<div class="row">${glHTML(id)}<span class="tx"><b>${A[id].name}</b><small>${[412, 2310, 1840, 96, 288][i]} MB</small></span><span class="chev">›</span></div>`).join('')}</div>
+    <h2>pseudOS</h2><div class="group"><div class="row"><span class="gl">${svg('adv')}</span><span class="tx"><b>Tweaks</b><small>3 items</small></span><span class="chev">›</span></div><div class="row"><span class="gl">${svg('files')}</span><span class="tx"><b>Inbox</b><small>Files shared to pseudOS</small></span><span class="chev">›</span></div></div></div>`; };
+  SYS.gallery = el => { let s = 7; const r = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+    el.innerHTML = `<div class="scroll"><h1>Gallery</h1><div class="gallery">${Array.from({ length: 36 }, () => { const h = Math.floor(r() * 360); return `<i style="background:linear-gradient(${Math.floor(r() * 360)}deg,hsl(${h} 45% ${30 + r() * 25}%),hsl(${(h + 40) % 360} 55% ${45 + r() * 20}%))"></i>`; }).join('')}</div></div>`; };
+  SYS.library = el => { el.innerHTML = `<div class="scroll"><h1>Library</h1><div class="empty" style="padding:4px 24px 16px;text-align:left">The full LiveContainer interface lives here unchanged: install IPAs, manage containers, tweaks and per-app settings.</div>
+    <div class="group">${['discord', 'youtube', 'spotify', 'apollo', 'ytmusic', 'soundcloud', 'twitter', 'itorrent', 'feather'].map(id => `<div class="row">${glHTML(id)}<span class="tx"><b>${A[id].name}</b><small>${A[id].sub} ${A[id].ver}</small></span><span class="val">Run</span></div>`).join('')}</div></div>`; };
+
+  // ---------- opening, closing, switching ----------
+  function homeRect(id) { const b = iconFor(id); if (!b) return null; return rel(b.querySelector('.tile')); }
+  function setFg(id) {
+    screens.forEach((el, k) => el.classList.toggle('fg', k === id));
+    S.fg = id; phone.classList.toggle('in-app', !!id);
+    const light = phone.dataset.theme === 'light', dark = id && !A[id].sys ? true : !light;
+    phone.style.setProperty('--bar-ink', dark ? '#F3F5F7' : '#1E2329');
+    $('#home').classList.toggle('away', !!id);
+  }
+  function touch(id) { S.running = [id, ...S.running.filter(x => x !== id)]; }
+  async function openApp(id, fromEl) {
+    closeMenu(); if (S.fg === id) return;
+    let el = screens.get(id);
+    if (!el) {
+      if (S.running.length >= S.limit) { const victim = S.running[S.running.length - 1]; quit(victim); toast(`Closed ${A[victim].name} to stay at ${S.limit} running apps`); }
+      el = buildScreen(id);
+    }
+    touch(id); markRunning(); renderStrip();
+    const from = fromEl ? rel(fromEl.querySelector('.tile') || fromEl) : { x: W / 2 - 30, y: H / 2 - 30, w: 60, h: 60 };
+    setFg(id);
+    await anim(el, [
+      { transform: `translate(${from.x}px,${from.y}px) scale(${from.w / W},${from.h / H})`, borderRadius: '90px', opacity: .4 },
+      { transform: 'none', borderRadius: '52px', opacity: 1 },
+    ], 420);
+  }
+  async function goHome() {
+    if ($('#switcher').classList.contains('on')) return closeSwitcher();
+    const id = S.fg; if (!id) return;
+    const el = screens.get(id), to = homeRect(id);
+    $('#home').classList.remove('away');
+    await anim(el, [{ transform: 'none', borderRadius: '52px', opacity: 1 },
+      to ? { transform: `translate(${to.x}px,${to.y}px) scale(${to.w / W},${to.h / H})`, borderRadius: '90px', opacity: .2 } : { transform: 'translate(94px,203px) scale(.5)', opacity: 0 }], 380);
+    setFg(null); markRunning(); renderStrip();
+  }
+  function quit(id) {
+    const el = screens.get(id); if (el) el.remove(); screens.delete(id);
+    S.running = S.running.filter(x => x !== id); if (S.fg === id) setFg(null);
+    markRunning(); renderStrip();
+  }
+  function openSwitcher() {
+    closeMenu(); const sw = $('#switcher'), cards = $('#cards'); cards.innerHTML = '';
+    const prevFg = S.fg;
+    S.running.forEach(id => {
+      const c = document.createElement('div'); c.className = 'card'; c.dataset.id = id;
+      const capIcon = A[id].sys ? `<span class="mini tile" style="width:24px;height:24px;border-radius:6px">${svg(A[id].sys).replace('<svg', '<svg style="inset:4px;width:16px;height:16px"')}</span>` : `<img src="${ICONS + A[id].img}" alt="">`;
+      c.innerHTML = `<div class="cap">${capIcon}${A[id].name}</div><div class="frame"></div>`;
+      const el = screens.get(id); el.classList.remove('fg'); c.querySelector('.frame').appendChild(el);
+      cardGestures(c); cards.appendChild(c);
+    });
+    if (!S.running.length) cards.innerHTML = '<div class="sw-empty" style="width:100%">No apps running</div>';
+    S.fg = null; phone.classList.remove('in-app'); $('#home').classList.remove('away');
+    sw.classList.add('on');
+    const first = cards.querySelector(`.card[data-id="${prevFg}"]`) || cards.firstElementChild;
+    if (first && first.classList.contains('card')) {
+      cards.scrollLeft = first.offsetLeft - 81;
+      if (prevFg) { const f = first.querySelector('.frame'), r = rel(f);
+        anim(f, [{ transform: `translate(${-r.x}px,${-r.y}px) scale(${W / r.w},${H / r.h})`, transformOrigin: '0 0', borderRadius: '52px' }, { transform: 'none', transformOrigin: '0 0', borderRadius: '30px' }], 380); }
+    }
+    anim($('#switcher .shade'), [{ opacity: 0 }, { opacity: 1 }], 250);
+  }
+  function restoreScreens() { S.running.forEach(id => { const el = screens.get(id); if (el && el.parentElement.id !== 'apps') { el.style.transform = ''; $('#apps').appendChild(el); } }); }
+  async function closeSwitcher(toId) {
+    const sw = $('#switcher');
+    if (toId) {
+      const card = $(`.card[data-id="${toId}"]`), f = card.querySelector('.frame'), r = rel(f);
+      await anim(f, [{ transform: 'none', transformOrigin: '0 0' }, { transform: `translate(${-r.x}px,${-r.y}px) scale(${W / r.w},${H / r.h})`, transformOrigin: '0 0', borderRadius: '52px' }], 340);
+    }
+    restoreScreens(); sw.classList.remove('on');
+    if (toId) { touch(toId); setFg(toId); } else setFg(null);
+    markRunning(); renderStrip();
+  }
+  function cardGestures(c) {
+    let y0, x0, dy = 0, moved = false, id = c.dataset.id;
+    c.addEventListener('pointerdown', e => { y0 = e.clientY; x0 = e.clientX; dy = 0; moved = false; c.setPointerCapture(e.pointerId); });
+    c.addEventListener('pointermove', e => { if (y0 == null) return; const ddy = e.clientY - y0, ddx = e.clientX - x0;
+      if (Math.abs(ddy) > 8 && Math.abs(ddy) > Math.abs(ddx)) moved = true;
+      if (moved) { dy = Math.min(0, ddy); c.style.transform = `translateY(${dy}px)`; c.style.opacity = 1 + dy / 500; } });
+    c.addEventListener('pointerup', async e => { const was = moved; y0 = null;
+      if (!was) return closeSwitcher(id);
+      if (dy < -110) { await c.animate([{ transform: `translateY(${dy}px)`, opacity: c.style.opacity }, { transform: 'translateY(-700px)', opacity: 0 }], { duration: 240, easing: 'ease-in' }).finished;
+        const el = screens.get(id); el && el.remove(); screens.delete(id); S.running = S.running.filter(x => x !== id); c.remove(); markRunning(); renderStrip();
+        if (!S.running.length) closeSwitcher(); }
+      else { c.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' }); c.style.transform = ''; c.style.opacity = ''; } });
+  }
+  $('#switcher .shade').addEventListener('click', () => closeSwitcher());
+
+  // ---------- the handle ----------
+  const hd = $('#handle'); let hT, armed = false, hy0;
+  hd.addEventListener('pointerdown', e => { armed = false; hy0 = e.clientY; hd.setPointerCapture(e.pointerId); hT = setTimeout(() => { armed = true; hd.classList.add('armed'); }, 420); });
+  hd.addEventListener('pointerup', () => { clearTimeout(hT); hd.classList.remove('armed');
+    if (armed) { $('#switcher').classList.contains('on') ? closeSwitcher() : openSwitcher(); } else goHome(); armed = false; });
+  hd.addEventListener('pointercancel', () => { clearTimeout(hT); hd.classList.remove('armed'); });
+  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return;
+    if (e.key === 'h' || e.key === 'H' || e.key === 'Escape') goHome();
+    if (e.key === 's' || e.key === 'S') $('#switcher').classList.contains('on') ? closeSwitcher() : openSwitcher(); });
+
+  // ---------- look controls ----------
+  function setTheme(t) { phone.dataset.theme = t; drawWall(); setFg(S.fg);
+    document.querySelectorAll('#ctl-theme [data-theme]').forEach(b => b.setAttribute('aria-pressed', b.dataset.theme === t)); }
+  function setAccent(c) { S.accent = c; phone.style.setProperty('--signal-fixed', c);
+    phone.style.setProperty('--signal', phone.dataset.theme === 'light' && c === '#FFB000' ? '#B87400' : c); drawWall(); renderSwatches(); }
+  function reroll() { S.seed = Math.floor(Math.random() * 1e6); drawWall(); }
+  function renderSwatches() { $('#swatches').innerHTML = ACCENTS.map(c => `<button style="background:${c}" data-c="${c}" aria-label="Accent ${c}" aria-pressed="${c === S.accent}"></button>`).join(''); }
+  $('#swatches').addEventListener('click', e => { const c = e.target.dataset.c; if (c) setAccent(c); });
+  $('#ctl-theme').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.theme) setTheme(b.dataset.theme);
+    if (b.id === 'reroll') reroll();
+    if (b.id === 'motion') { S.reduce = !S.reduce; b.setAttribute('aria-pressed', S.reduce); } });
+  $('#motion').setAttribute('aria-pressed', S.reduce);
+
+  // ---------- clock + fit ----------
+  function clock() { const d = new Date(); const hm = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    $('#clock').textContent = hm; $('#iostime').textContent = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(/\s?[AP]M/, '');
+    $('#date').textContent = d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }); }
+  function fit() { const avail = Math.min(document.documentElement.clientWidth - 22, 397); const z = Math.min(1, avail / 397); $('#wrap').style.zoom = z; }
+  addEventListener('resize', fit);
+
+  renderSwatches(); renderHome(); drawWall(); clock(); fit(); setInterval(clock, 15000);
+
+  // ---------- scripted states for screenshots: #demo=app|switcher|signing|updates|menu|light ----------
+  const demo = (location.hash.match(/demo=(\w+)/) || [])[1];
+  if (demo) { S.instant = true; S.seed = 424242; drawWall();
+    document.head.insertAdjacentHTML('beforeend', '<style>*,*::before,*::after{animation:none!important;transition:none!important}</style>');
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    (async () => {
+      if (demo === 'light') setTheme('light');
+      if (demo === 'app') await openApp('youtube', iconFor('youtube'));
+      if (demo === 'switcher') { await openApp('discord', iconFor('discord')); await openApp('spotify', iconFor('spotify')); await openApp('settings', iconFor('settings')); await openApp('youtube', iconFor('youtube')); openSwitcher(); }
+      if (demo === 'signing') { S.days = 2; renderStrip(); await openApp('settings', iconFor('settings')); settingsGo('signing', true); }
+      if (demo === 'updates') { await openApp('store', iconFor('store')); }
+      if (demo === 'menu') { await openApp('spotify', iconFor('spotify')); await goHome(); openMenu('youtube', iconFor('youtube')); }
+      await wait(300); document.title = 'ready';
+    })(); }
+  document.fonts && document.fonts.ready.then(drawWall);
+  console.log('mockup ready');
+})();
+</script>
+</body>
+</html>

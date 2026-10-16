@@ -102,7 +102,8 @@ struct LiveContainerSwiftUIApp : SwiftUI.App {
     
     var body: some Scene {
         WindowGroup(id: "Main") {
-            LCTabView()
+            // FORK: pseudOS shell; falls back to LCTabView in classic mode (see FORK.md)
+            PseudoOSRoot()
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
                 .environmentObject(DataManager.shared.model)
                 .environmentObject(LCAppSortManager.shared)

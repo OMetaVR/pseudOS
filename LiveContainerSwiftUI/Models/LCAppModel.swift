@@ -524,6 +524,8 @@ class LCAppModel: ObservableObject, Hashable {
                 UserDefaults.standard.setValue(urlScheme, forKey: "launchAppUrlScheme")
             }
             var found = false
+            // FORK: pseudOS tracks its own running apps (see FORK.md)
+            if PseudoShellBridge.isActive { return PseudoShellBridge.bringToFront(dataUUID: dataUUID, urlScheme: urlScheme) }
             if #available(iOS 16.1, *) {
                 found = MultitaskWindowManager.openExistingAppWindow(dataUUID: dataUUID)
             }

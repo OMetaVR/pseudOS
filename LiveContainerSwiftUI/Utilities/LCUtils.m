@@ -70,6 +70,8 @@
     [lcUserDefaults removeObjectForKey:@"selectedContainer"];
     
     dispatch_async(dispatch_get_main_queue(), ^{
+        // FORK: pseudOS hosts multitask apps full screen in its own shell (see FORK.md)
+        if (PseudoShellBridge.isActive) { [PseudoShellBridge launchGuestWithDisplayName:displayName bundleId:bundleId dataUUID:dataUUID completion:completionHandler]; return; }
         if (@available(iOS 16.1, *)) {
             if(UIApplication.sharedApplication.supportsMultipleScenes && [NSUserDefaults.lcSharedDefaults integerForKey:@"LCMultitaskMode"] == 1) {
                 [MultitaskWindowManager openAppWindowWithDisplayName:displayName dataUUID:dataUUID bundleId:bundleId pidCallback:completionHandler];

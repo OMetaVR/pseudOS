@@ -4,8 +4,9 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- FORK: pseudOS display name (see FORK.md) -->
 	<key>CFBundleDisplayName</key>
-	<string>LiveContainer</string>
+	<string>pseudOS</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

@@ -96,7 +96,9 @@ final class LCAppBannerViewController: UIViewController, UIContextMenuInteractio
            let currentDataFolder = configuration.model.uiSelectedContainer?.folderName,
            MultitaskManager.isUsing(container: currentDataFolder) {
             var found = false
-            if #available(iOS 16.1, *) {
+            // FORK: pseudOS tracks its own running apps (see FORK.md)
+            if PseudoShellBridge.isActive { found = PseudoShellBridge.bringToFront(dataUUID: currentDataFolder, urlScheme: nil) }
+            if #available(iOS 16.1, *), !found {
                 found = MultitaskWindowManager.openExistingAppWindow(dataUUID: currentDataFolder)
             }
             if !found {
